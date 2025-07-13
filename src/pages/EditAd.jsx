@@ -77,14 +77,18 @@ function EditAd() {
                 return;
             }
             
-            setFormData({
-                title: adToEdit.title || '',
-                description: adToEdit.description || '',
-                price: adToEdit.price?.toString() || '',
-                category: adToEdit.category || '',
-                city: adToEdit.city || '',
-                imageUrl: adToEdit.imageUrl || ''
-            });
+            // Only update form data if it's not already populated
+            if (!formData.title) {
+                console.log('📋 Pre-populating form with ad data:', adToEdit);
+                setFormData({
+                    title: adToEdit.title || '',
+                    description: adToEdit.description || '',
+                    price: adToEdit.price?.toString() || '',
+                    category: adToEdit.category || '',
+                    city: adToEdit.city || '',
+                    imageUrl: adToEdit.imageUrl || ''
+                });
+            }
         }
     }, [adToEdit, isAuthenticated, user, navigate]);
 
@@ -124,6 +128,7 @@ function EditAd() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
+        console.log(`📝 Input change - ${name}: ${value}`);
         setFormData(prev => ({
             ...prev,
             [name]: value

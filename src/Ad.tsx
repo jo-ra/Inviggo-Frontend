@@ -103,7 +103,7 @@ const AdsHomepage = () => {
           <Filter className="h-5 w-5 text-gray-600" />
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* Name Search */}
           <div>
@@ -295,11 +295,10 @@ const AdsHomepage = () => {
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                        pageNum === currentPage
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${pageNum === currentPage
                           ? 'bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
                           : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                      }`}
+                        }`}
                     >
                       {pageNum}
                     </button>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const AdsContext = createContext();
 
@@ -18,7 +18,7 @@ export const AdsProvider = ({ children }) => {
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
 
-    const fetchAds = async (page = 0) => {
+    const fetchAds = useCallback(async (page = 0) => {
         try {
             setLoading(true);
             setError(null);
@@ -47,7 +47,7 @@ export const AdsProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     // Fetch ads on component mount
     useEffect(() => {
@@ -55,32 +55,32 @@ export const AdsProvider = ({ children }) => {
     }, []);
 
     // Function to refresh ads after creating/updating/deleting
-    const refreshAds = async () => {
+    const refreshAds = useCallback(async () => {
         console.log('🔄 refreshAds called - fetching latest data...');
         await fetchAds(currentPage);
         console.log('✅ refreshAds completed');
-    };
+    }, [fetchAds, currentPage]);
 
     // Navigation functions
-    const goToNextPage = () => {
+    const goToNextPage = useCallback(() => {
         if (currentPage < totalPages - 1) {
             fetchAds(currentPage + 1);
         }
-    };
+    }, [currentPage, totalPages, fetchAds]);
 
-    const goToPreviousPage = () => {
+    const goToPreviousPage = useCallback(() => {
         if (currentPage > 0) {
             fetchAds(currentPage - 1);
         }
-    };
+    }, [currentPage, fetchAds]);
 
-    const goToFirstPage = async () => {
+    const goToFirstPage = useCallback(async () => {
         await fetchAds(0);
-    };
+    }, [fetchAds]);
 
-    const goToLastPage = async () => {
+    const goToLastPage = useCallback(async () => {
         await fetchAds(totalPages - 1);
-    };
+    }, [fetchAds, totalPages]);
 
     // Function to add a new ad optimistically (without refetching)
     const addAd = (newAd) => {
@@ -154,6 +154,52 @@ export const AdsProvider = ({ children }) => {
         }
     };
 
+    // Function to fetch ads by price range from backend
+    const fetchAdsByPriceRange = useCallback(async (minPrice, maxPrice, page = 0) => {
+        try {
+            setLoading(true);
+            setError(null);
+            console.log(`🔄 Fetching ads by price range... Min: ${minPrice}, Max: ${maxPrice}, Page: ${page}`);
+            
+            // Build URL with only the parameters that are provided (now that backend supports optional params)
+            let url = `http://localhost:8080/ad/filterByPrice?page=${page}&size=20`;
+            
+            if (minPrice !== null && minPrice !== undefined) {
+                url += `&minPrice=${minPrice}`;
+            }
+            if (maxPrice !== null && maxPrice !== undefined) {
+                url += `&maxPrice=${maxPrice}`;
+            }
+            
+            console.log(`📡 API URL: ${url}`);
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('📥 Price range filtered ads response:', data);
+            
+            const adsArray = data.content ?? data ?? [];
+            console.log('📋 Setting price filtered ads array:', adsArray);
+            
+            setAds(adsArray);
+            setCurrentPage(data.number || 0);
+            setTotalPages(data.totalPages || 1);
+            setTotalElements(data.totalElements || adsArray.length);
+            
+            return adsArray;
+        } catch (err) {
+            console.error('❌ Error fetching ads by price range:', err);
+            setError(err.message);
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     const value = {
         ads,
         loading,
@@ -170,7 +216,9 @@ export const AdsProvider = ({ children }) => {
         goToPreviousPage,
         goToFirstPage,
         goToLastPage,
-        fetchUserAds
+        fetchUserAds,
+        fetchAdsByPriceRange,
+        fetchAds
     };
 
     return (
