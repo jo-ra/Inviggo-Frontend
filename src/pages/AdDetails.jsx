@@ -1,9 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAds } from '../services/AdsContext';
 import '../css/AdDetails.css';
 
-function AdDetails({ ads }) {
+function AdDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { ads } = useAds();
     
     // Find the ad by ID
     const ad = ads?.find(ad => ad.id === parseInt(id));

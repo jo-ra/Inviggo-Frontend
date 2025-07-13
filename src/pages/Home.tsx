@@ -1,36 +1,35 @@
 import AdTable from "../components/AdTable";
-import { useState, useEffect } from "react";
+import { useAds } from "../services/AdsContext";
 import '../css/Home.css';
 
-interface Ad {
-    id: number;
-    title: string;
-    description: string;
-    price: number;
-    city: string;
-    category: string;
-    imageUrl: string;
-    sellerName: string;
-    sellerPhone: string;
-}
-
-
 function Home() {
-    const [ads, setAds] = useState<Ad[]>([]);
+    const { ads, loading, error } = useAds();
 
-    useEffect(() => {
-        fetch('http://localhost:8080/ad/getAll')
-            .then(res => res.json())
-            .then(data => setAds(data.content ?? []))
-            .catch(err => console.error(err));
-    }, []);
+    if (loading) {
+        return (
+            <div className="home">
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                    Loading ads...
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="home">
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'red' }}>
+                    Error loading ads: {error}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="home">
             <AdTable ads={ads} />
         </div>
     );
-
 }
 
 export default Home;

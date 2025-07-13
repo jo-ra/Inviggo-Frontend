@@ -42,7 +42,7 @@ function Register() {
             setSuccess(result.message);
             // Redirect to login after successful registration
             setTimeout(() => {
-                navigate('/login');
+                navigate('/');
             }, 2000);
         } catch (error) {
             setError(error.message);

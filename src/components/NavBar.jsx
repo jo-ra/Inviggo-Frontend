@@ -19,6 +19,10 @@ function NavBar() {
     const handleRegister = () => {
         navigate('/register');
     };
+
+    const handleAddAd = () => {
+        navigate('/add-ad');
+    };
     return <nav className="navbar">
                 <div className = "navbar-brand">
                     <Link to="/">Inviggo</Link>
@@ -29,6 +33,9 @@ function NavBar() {
                 </div>
                  {isAuthenticated ? (
                 <div className="auth-section">
+                    <button onClick={handleAddAd} className="add-ad-nav-btn">
+                        + Add Ad
+                    </button>
                     <span>Welcome, {user.username}</span>
                     <button onClick={handleLogout} className="logout-btn">
                         Logout

@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAds } from '../services/AdsContext';
+import { useAuth } from '../services/AuthContext';
 import '../css/AdTable.css';
 
 function AdTable({ads}) {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All Categories");
     const navigate = useNavigate();
+    const { currentPage, totalPages, goToNextPage, goToPreviousPage } = useAds();
+    const { user, isAuthenticated } = useAuth();
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -27,12 +31,13 @@ function AdTable({ads}) {
         return matchesSearch && matchesCategory;
     });
 
+    console.log('🎯 AdTable - Total ads:', ads.length);
+    console.log('🎯 AdTable - Filtered ads:', filteredAds.length);
+    console.log('🎯 AdTable - Current page:', currentPage);
+    console.log('🎯 AdTable - Total pages:', totalPages);
+
     return (
         <div className="ad-table-container">
-            <div className="table-header">
-                <button className="add-new-btn">Add New Ad</button>
-            </div>
-            
             <div className="table-controls">
                 <select 
                     className="category-filter"
@@ -74,18 +79,36 @@ function AdTable({ads}) {
                             <div className="ad-details">
                                 <span className="ad-category">{ad.category}</span>
                             </div>
-                            <div className="ad-actions" onClick={(e) => e.stopPropagation()}>
-                                <button className="edit-btn">Edit</button>
-                                <button className="delete-btn">Delete</button>
-                            </div>
+                            {/* Only show edit/delete buttons for current user's ads */}
+                            {isAuthenticated && user && ad.user && ad.user.username === user.username && (
+                                <div className="ad-actions" onClick={(e) => e.stopPropagation()}>
+                                    <button className="edit-btn">Edit</button>
+                                    <button className="delete-btn">Delete</button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
             </div>
             
             <div className="table-pagination">
-                <button className="prev-btn">Previous</button>
-                <button className="next-btn">Next</button>
+                <button 
+                    className="prev-btn" 
+                    onClick={goToPreviousPage}
+                    disabled={currentPage === 0}
+                >
+                    Previous
+                </button>
+                <span className="page-info">
+                    Page {currentPage + 1} of {totalPages}
+                </span>
+                <button 
+                    className="next-btn"
+                    onClick={goToNextPage}
+                    disabled={currentPage >= totalPages - 1}
+                >
+                    Next
+                </button>
             </div>
         </div>
     );

@@ -7,35 +7,30 @@ import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import AdDetails from './pages/AdDetails.jsx'
+import AddAd from './pages/AddAd.jsx'
 import { AuthProvider } from './services/AuthContext.jsx';
+import { AdsProvider } from './services/AdsContext.jsx';
 import {BrowserRouter, Routes,Route} from 'react-router-dom'
 import NavBar from './components/NavBar.jsx'
 import './css/App.css'
 
 
 function App() {
-  const [ads, setAds] = useState([]);
-
-  useEffect(() => {
-    fetch('http://localhost:8080/ad/getAll')
-        .then(res => res.json())
-        .then(data => setAds(data.content ?? []))
-        .catch(err => console.error(err));
-  }, []);
 
   return (
     <AuthProvider>
-  
+      <AdsProvider>
         <NavBar />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/ads" element={<Home />} />
-          <Route path="/ad/:id" element={<AdDetails ads={ads} />} />
+          <Route path="/ad/:id" element={<AdDetails />} />
+          <Route path="/add-ad" element={<AddAd />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
          
         </Routes>
-
+      </AdsProvider>
     </AuthProvider>
   )
 
