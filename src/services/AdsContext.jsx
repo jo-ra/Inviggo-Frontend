@@ -124,6 +124,36 @@ export const AdsProvider = ({ children }) => {
         }
     };
 
+     // Function to fetch all ads for a specific user
+    const fetchUserAds = async (username, userToken) => {
+        try {
+            console.log(`🔄 Fetching all ads for user: ${username}`);
+            
+            const response = await fetch(`http://localhost:8080/ad/user/${username}`, {
+                headers: {
+                    'Authorization': `Bearer ${userToken}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('📥 User ads raw response:', data);
+            
+            // Extract the ads array from the response (handle both paginated and direct array responses)
+            const userAds = data.content ?? data ?? [];
+            console.log('📋 User ads array:', userAds);
+            console.log('📊 Number of user ads:', userAds.length);
+            
+            return userAds;
+        } catch (err) {
+            console.error('❌ Error fetching user ads:', err);
+            return [];
+        }
+    };
+
     const value = {
         ads,
         loading,
@@ -139,7 +169,8 @@ export const AdsProvider = ({ children }) => {
         goToNextPage,
         goToPreviousPage,
         goToFirstPage,
-        goToLastPage
+        goToLastPage,
+        fetchUserAds
     };
 
     return (
