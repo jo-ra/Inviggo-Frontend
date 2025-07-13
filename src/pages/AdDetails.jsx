@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useAds } from '../services/AdsContext';
 import { useAuth } from '../services/AuthContext';
 import '../css/AdDetails.css';
@@ -8,19 +9,63 @@ function AdDetails() {
     const navigate = useNavigate();
     const { ads, deleteAdFromBackend, currentPage, totalPages } = useAds();
     const { user, isAuthenticated } = useAuth();
+    const [ad, setAd] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     
-    // Find the ad by ID
-    const ad = ads?.find(ad => ad.id === parseInt(id));
+    useEffect(() => {
+        // First, try to find the ad in the current context
+        const contextAd = ads?.find(ad => ad.id === parseInt(id));
+        
+        if (contextAd) {
+            console.log('✅ Found ad in context:', contextAd);
+            setAd(contextAd);
+            setLoading(false);
+        } else {
+            // If not found in context, fetch it directly from the backend
+            console.log('🔍 Ad not in context, fetching from backend...');
+            fetchAdFromBackend();
+        }
+    }, [id, ads]);
+
+    const fetchAdFromBackend = async () => {
+        try {
+            setLoading(true);
+            console.log(`🔄 Fetching ad ${id} from backend...`);
+            
+            const response = await fetch(`http://localhost:8080/ad/${id}`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    setError('Ad not found');
+                } else {
+                    setError(`Failed to load ad: ${response.status}`);
+                }
+                setLoading(false);
+                return;
+            }
+            
+            const fetchedAd = await response.json();
+            console.log('📥 Fetched ad from backend:', fetchedAd);
+            setAd(fetchedAd);
+        } catch (err) {
+            console.error('❌ Error fetching ad:', err);
+            setError('Failed to load ad');
+        } finally {
+            setLoading(false);
+        }
+    };
     
     // Check if current user owns this ad
     // Use seller name since it's the same as username
-    const isOwner = isAuthenticated && user && ad.sellerName === user.username;
+    const isOwner = isAuthenticated && user && ad && ad.sellerName === user.username;
     
     // Debug logging to help troubleshoot ownership
     console.log('🔍 AdDetails Ownership Check:', {
         isAuthenticated,
         hasUser: !!user,
-        sellerName: ad.sellerName,
+        adExists: !!ad,
+        sellerName: ad?.sellerName,
         currentUsername: user?.username,
         isOwner
     });
@@ -42,16 +87,25 @@ function AdDetails() {
     };
     
     const handleEditAd = () => {
-        // For now, just show an alert. Later you can navigate to edit page
-        alert('Edit functionality coming soon!');
-        // navigate(`/edit-ad/${ad.id}`);
+        navigate(`/edit-ad/${ad.id}`);
     };
     
-    if (!ad) {
+    if (loading) {
+        return (
+            <div className="ad-details-container">
+                <div className="ad-loading">
+                    <h2>Loading ad...</h2>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !ad) {
         return (
             <div className="ad-details-container">
                 <div className="ad-not-found">
-                    <h2>Ad not found</h2>
+                    <h2>{error || 'Ad not found'}</h2>
+                    <p>The ad you're looking for might have been deleted or doesn't exist.</p>
                     <button onClick={() => navigate('/ads')} className="back-btn">
                         Back to Ads
                     </button>

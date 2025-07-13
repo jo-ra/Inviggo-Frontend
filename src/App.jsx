@@ -8,6 +8,7 @@ import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import AdDetails from './pages/AdDetails.jsx'
 import AddAd from './pages/AddAd.jsx'
+import EditAd from './pages/EditAd.jsx'
 import { AuthProvider } from './services/AuthContext.jsx';
 import { AdsProvider } from './services/AdsContext.jsx';
 import {BrowserRouter, Routes,Route} from 'react-router-dom'
@@ -26,6 +27,7 @@ function App() {
           <Route path="/ads" element={<Home />} />
           <Route path="/ad/:id" element={<AdDetails />} />
           <Route path="/add-ad" element={<AddAd />} />
+          <Route path="/edit-ad/:id" element={<EditAd />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
          

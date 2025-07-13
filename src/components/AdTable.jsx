@@ -53,23 +53,9 @@ function AdTable({ads}) {
         return matchesSearch && matchesCategory;
     });
 
-      // Calculate pagination for filtered results
+    // Calculate pagination for filtered results
     const filteredTotalPages = filteredAds.length > 0 ? Math.ceil(filteredAds.length / 20) : 0;
     const shouldShowPagination = !showMineOnly; // Only show backend pagination when not filtering by "mine only"
-
-
-    console.log('🎯 AdTable - Total ads:', ads.length);
-    console.log('🎯 AdTable - Show mine only:', showMineOnly);
-    console.log('🎯 AdTable - User ads:', userAds);
-    console.log('🎯 AdTable - Ads to display:', adsToDisplay);
-    console.log('🎯 AdTable - Safe ads to display:', safeAdsToDisplay);
-    console.log('🎯 AdTable - Filtered ads:', filteredAds.length);
-    console.log('🎯 AdTable - Current page:', currentPage);
-    console.log('🎯 AdTable - Total pages:', totalPages);
-    console.log('🔐 AdTable - Is authenticated:', isAuthenticated);
-    console.log('👤 AdTable - Current user:', user);
-    
-    // Log first few ads to see their user data
     const handleShowMineOnlyChange = async (e) => {
         const checked = e.target.checked;
         setShowMineOnly(checked);
@@ -77,30 +63,19 @@ function AdTable({ads}) {
         if (checked && isAuthenticated && user && fetchUserAds) {
             try {
                 setLoadingUserAds(true);
-                console.log(`🔄 Fetching ads for user: ${user.username}`);
                 const myAds = await fetchUserAds(user.username, user.token);
-                console.log('📥 Received user ads:', myAds);
                 setUserAds(myAds || []); // Ensure we always set an array
                 setLoadingUserAds(false);
             } catch (error) {
                 console.error('Error fetching user ads:', error);
                 setUserAds([]);
                 setLoadingUserAds(false);
-                // Optionally show an error message to the user
                 alert('Failed to load your ads. Please try again.');
             }
         } else {
-            console.log('🔄 Unchecking show mine only, clearing user ads');
             setUserAds([]);
         }
     };
-
-    // Add useEffect to log changes in userAds
-    useEffect(() => {
-        console.log('🔄 UserAds state changed:', userAds);
-        console.log('📊 UserAds length:', userAds.length);
-        console.log('📊 Is userAds array?', Array.isArray(userAds));
-    }, [userAds]);
 
     return (
         <div className="ad-table-container">
@@ -158,23 +133,14 @@ function AdTable({ads}) {
                                     <span className="ad-category">{ad.category}</span>
                                 </div>
                                 {/* Only show edit/delete buttons for current user's ads */}
-                                {(() => {
-                                    // Use seller name since it's the same as username
-                                    const showButtons = isAuthenticated && user && ad.sellerName === user.username;
-                                    
-                                    if (ad.id === filteredAds[0]?.id) { // Debug first ad only
-                                        console.log(`🔍 Ad "${ad.title}" button check:`, {
-                                            isAuthenticated,
-                                            hasUser: !!user,
-                                            sellerName: ad.sellerName,
-                                            currentUsername: user?.username,
-                                            showButtons
-                                        });
-                                    }
-                                    return showButtons;
-                                })() && (
+                                {isAuthenticated && user && ad.sellerName === user.username && (
                                     <div className="ad-actions" onClick={(e) => e.stopPropagation()}>
-                                        <button className="edit-btn">Edit</button>
+                                        <button 
+                                            className="edit-btn"
+                                            onClick={() => navigate(`/edit-ad/${ad.id}`)}
+                                        >
+                                            Edit
+                                        </button>
                                         <button 
                                             className="delete-btn"
                                             onClick={() => handleDeleteAd(ad.id, ad.title)}
@@ -189,25 +155,28 @@ function AdTable({ads}) {
                 )}
             </div>
             
-            <div className="table-pagination">
-                <button 
-                    className="prev-btn" 
-                    onClick={goToPreviousPage}
-                    disabled={currentPage === 0}
-                >
-                    Previous
-                </button>
-                <span className="page-info">
-                    Page {currentPage + 1} of {totalPages}
-                </span>
-                <button 
-                    className="next-btn"
-                    onClick={goToNextPage}
-                    disabled={currentPage >= totalPages - 1}
-                >
-                    Next
-                </button>
-            </div>
+            {/* Only show pagination when NOT filtering by "mine only" and there are ads to paginate */}
+            {!showMineOnly && (
+                <div className="table-pagination">
+                    <button 
+                        className="prev-btn" 
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 0}
+                    >
+                        Previous
+                    </button>
+                    <span className="page-info">
+                        Page {currentPage + 1} of {totalPages}
+                    </span>
+                    <button 
+                        className="next-btn"
+                        onClick={goToNextPage}
+                        disabled={currentPage >= totalPages - 1}
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
