@@ -47,6 +47,50 @@
     display: block;
 }
 
+/* Owner Action Buttons */
+.owner-actions {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+}
+
+.owner-edit-btn, .owner-delete-btn {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.owner-edit-btn {
+    background: #ff6b35;
+    color: white;
+}
+
+.owner-edit-btn:hover {
+    background: #e55a2e;
+    transform: translateY(-1px);
+}
+
+.owner-delete-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.owner-delete-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
 .ad-info-section {
     padding: 20px;
 }

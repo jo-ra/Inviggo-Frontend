@@ -99,6 +99,31 @@ export const AdsProvider = ({ children }) => {
         setAds(prevAds => prevAds.filter(ad => ad.id !== adId));
     };
 
+    // Function to delete an ad from backend
+    const deleteAdFromBackend = async (adId, userToken) => {
+        try {
+            const response = await fetch(`http://localhost:8080/ad/delete/${adId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${userToken}`
+                }
+            });
+
+            if (response.ok) {
+                console.log('✅ Ad deleted successfully!');
+                // Remove the ad from the local state immediately
+                deleteAd(adId);
+                return true;
+            } else {
+                console.error('❌ Failed to delete ad:', response.status);
+                return false;
+            }
+        } catch (err) {
+            console.error('❌ Error deleting ad:', err);
+            return false;
+        }
+    };
+
     const value = {
         ads,
         loading,
@@ -110,6 +135,7 @@ export const AdsProvider = ({ children }) => {
         addAd,
         updateAd,
         deleteAd,
+        deleteAdFromBackend,
         goToNextPage,
         goToPreviousPage,
         goToFirstPage,

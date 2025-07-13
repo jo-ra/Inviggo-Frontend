@@ -1,14 +1,51 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAds } from '../services/AdsContext';
+import { useAuth } from '../services/AuthContext';
 import '../css/AdDetails.css';
 
 function AdDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { ads } = useAds();
+    const { ads, deleteAdFromBackend, currentPage, totalPages } = useAds();
+    const { user, isAuthenticated } = useAuth();
     
     // Find the ad by ID
     const ad = ads?.find(ad => ad.id === parseInt(id));
+    
+    // Check if current user owns this ad
+    // Use seller name since it's the same as username
+    const isOwner = isAuthenticated && user && ad.sellerName === user.username;
+    
+    // Debug logging to help troubleshoot ownership
+    console.log('🔍 AdDetails Ownership Check:', {
+        isAuthenticated,
+        hasUser: !!user,
+        sellerName: ad.sellerName,
+        currentUsername: user?.username,
+        isOwner
+    });
+    
+    const handleDeleteAd = async () => {
+        const confirmed = window.confirm(
+            `Are you sure you want to delete "${ad.title}"?\n\nThis action cannot be undone.`
+        );
+        
+        if (confirmed) {
+            const success = await deleteAdFromBackend(ad.id, user.token);
+            if (success) {
+                // Navigate back to ads list after successful deletion
+                navigate('/ads');
+            } else {
+                alert('Failed to delete the ad. Please try again.');
+            }
+        }
+    };
+    
+    const handleEditAd = () => {
+        // For now, just show an alert. Later you can navigate to edit page
+        alert('Edit functionality coming soon!');
+        // navigate(`/edit-ad/${ad.id}`);
+    };
     
     if (!ad) {
         return (
@@ -34,6 +71,24 @@ function AdDetails() {
             <div className="ad-details-content">
                 <div className="ad-image-section">
                     <img src={ad.imageUrl} alt={ad.title} className="ad-main-image" />
+                    
+                    {/* Owner actions - Edit and Delete buttons */}
+                    {isOwner && (
+                        <div className="owner-actions">
+                            <button 
+                                className="owner-edit-btn"
+                                onClick={handleEditAd}
+                            >
+                                Edit Ad
+                            </button>
+                            <button 
+                                className="owner-delete-btn"
+                                onClick={handleDeleteAd}
+                            >
+                                Delete Ad
+                            </button>
+                        </div>
+                    )}
                 </div>
                 
                 <div className="ad-info-section">
@@ -69,11 +124,6 @@ function AdDetails() {
                                 <p className="seller-phone">{ad.sellerPhone || 'Phone not available'}</p>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div className="contact-actions">
-                        <button className="contact-btn primary">Contact Seller</button>
-                        <button className="contact-btn secondary">Save Ad</button>
                     </div>
                 </div>
             </div>

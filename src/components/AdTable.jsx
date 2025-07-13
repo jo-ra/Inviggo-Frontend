@@ -8,7 +8,7 @@ function AdTable({ads}) {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All Categories");
     const navigate = useNavigate();
-    const { currentPage, totalPages, goToNextPage, goToPreviousPage } = useAds();
+    const { currentPage, totalPages, goToNextPage, goToPreviousPage, deleteAdFromBackend } = useAds();
     const { user, isAuthenticated } = useAuth();
 
     const handleSearch = (e) => {
@@ -18,6 +18,20 @@ function AdTable({ads}) {
 
     const handleAdClick = (adId) => {
         navigate(`/ad/${adId}`);
+    };
+
+    const handleDeleteAd = async (adId, adTitle) => {
+        // Show confirmation dialog
+        const confirmed = window.confirm(
+            `Are you sure you want to delete "${adTitle}"?\n\nThis action cannot be undone.`
+        );
+        
+        if (confirmed) {
+            const success = await deleteAdFromBackend(adId, user.token);
+            if (!success) {
+                alert('Failed to delete the ad. Please try again.');
+            }
+        }
     };
 
     // Dynamically get unique categories from the ads data
@@ -35,6 +49,13 @@ function AdTable({ads}) {
     console.log('🎯 AdTable - Filtered ads:', filteredAds.length);
     console.log('🎯 AdTable - Current page:', currentPage);
     console.log('🎯 AdTable - Total pages:', totalPages);
+    console.log('🔐 AdTable - Is authenticated:', isAuthenticated);
+    console.log('👤 AdTable - Current user:', user);
+    
+    // Log first few ads to see their user data
+    if (filteredAds.length > 0) {
+        console.log('📋 AdTable - Sample ad user data:', filteredAds[0]?.user);
+    }
 
     return (
         <div className="ad-table-container">
@@ -80,10 +101,29 @@ function AdTable({ads}) {
                                 <span className="ad-category">{ad.category}</span>
                             </div>
                             {/* Only show edit/delete buttons for current user's ads */}
-                            {isAuthenticated && user && ad.user && ad.user.username === user.username && (
+                            {(() => {
+                                // Use seller name since it's the same as username
+                                const showButtons = isAuthenticated && user && ad.sellerName === user.username;
+                                
+                                if (ad.id === filteredAds[0]?.id) { // Debug first ad only
+                                    console.log(`🔍 Ad "${ad.title}" button check:`, {
+                                        isAuthenticated,
+                                        hasUser: !!user,
+                                        sellerName: ad.sellerName,
+                                        currentUsername: user?.username,
+                                        showButtons
+                                    });
+                                }
+                                return showButtons;
+                            })() && (
                                 <div className="ad-actions" onClick={(e) => e.stopPropagation()}>
                                     <button className="edit-btn">Edit</button>
-                                    <button className="delete-btn">Delete</button>
+                                    <button 
+                                        className="delete-btn"
+                                        onClick={() => handleDeleteAd(ad.id, ad.title)}
+                                    >
+                                        Delete
+                                    </button>
                                 </div>
                             )}
                         </div>
