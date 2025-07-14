@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAds } from '../services/AdsContext';
 import { useAuth } from '../services/AuthContext';
+import { VALID_CATEGORIES, isValidCategory, sanitizeCategory } from '../constants/categories';
 import '../css/AdTable.css';
 
 function AdTable({ads}) {
@@ -12,13 +13,28 @@ function AdTable({ads}) {
     const navigate = useNavigate();
     const [showMineOnly, setShowMineOnly] = useState(false);
     const [userAds, setUserAds] = useState([]);
-    const [loadingUserAds, setLoadingUserAds] = useState(false);
-    const { currentPage, totalPages, goToNextPage, goToPreviousPage, deleteAdFromBackend, fetchUserAds, fetchAdsByPriceRange, fetchAds } = useAds();
+    const { currentPage, totalPages, goToNextPage, goToPreviousPage, deleteAdFromBackend, fetchFilteredAds, fetchAds, fetchUserAds } = useAds();
     const { user, isAuthenticated } = useAuth();
 
-    const handleSearch = (e) => {
+    const handleCategoryChange = async (e) => {
+        const newCategory = e.target.value;
+        setSelectedCategory(newCategory);
+        
+        // Validate category before filtering
+        if (newCategory !== "All Categories" && !isValidCategory(newCategory)) {
+            console.warn(`⚠️ Invalid category selected: ${newCategory}`);
+            alert(`Invalid category: ${newCategory}. Please select a valid category.`);
+            return;
+        }
+        
+        // No need for backend call - filtering is done in filteredAds computed property
+        console.log(`🔍 Category changed to: ${newCategory} - filtering will be applied automatically`);
+    };
+
+    const handleSearch = async (e) => {
         e.preventDefault();
-        // Search is handled by the filtering below
+        // No backend call needed - filtering is done automatically in filteredAds
+        console.log(`🔍 Search triggered: "${searchQuery}" - filtering will be applied automatically`);
     };
 
     const clearFilters = useCallback(() => {
@@ -26,38 +42,19 @@ function AdTable({ads}) {
         setSelectedCategory("All Categories");
         setMinPrice("");
         setMaxPrice("");
-        // Reset to show all ads only if not showing "mine only"
-        if (!showMineOnly) {
-            fetchAds(0);
-        }
-    }, [showMineOnly, fetchAds]);
+        setShowMineOnly(false);
+        setUserAds([]);
+        // No need to fetch - filtering is done automatically
+        console.log('🧹 All filters cleared - showing all ads');
+    }, []);
 
-    // Effect to handle backend price filtering only on Enter key
-    const handlePriceFilter = useCallback(async () => {
-        console.log(`🔍 Before API call - Min: "${minPrice}", Max: "${maxPrice}"`);
-        
-        // Apply backend filtering if we have price values and not showing "mine only"
-        if ((minPrice !== "" || maxPrice !== "") && !showMineOnly) {
-            const min = minPrice === "" ? null : parseFloat(minPrice);
-            const max = maxPrice === "" ? null : parseFloat(maxPrice);
-            
-            console.log(`🔍 Price filter values - Min: ${min}, Max: ${max}`);
-            
-            // Only proceed if we have valid numbers (or null for empty values)
-            if ((min === null || !isNaN(min)) && (max === null || !isNaN(max))) {
-                console.log(`📡 Making backend API call with Min: ${min}, Max: ${max}`);
-                await fetchAdsByPriceRange(min, max, 0);
-                console.log(`✅ After API call - Min: "${minPrice}", Max: "${maxPrice}"`);
-            }
-        }
-    }, [minPrice, maxPrice, showMineOnly, fetchAdsByPriceRange]);
-
-    // Handle Enter key press on price inputs
+    // Handle Enter key press on price inputs - no backend call needed
     const handlePriceKeyPress = useCallback((e) => {
         if (e.key === 'Enter') {
-            handlePriceFilter();
+            console.log(`🔍 Price filter applied: Min: "${minPrice}", Max: "${maxPrice}"`);
+            // Filtering happens automatically in filteredAds computed property
         }
-    }, [handlePriceFilter]);
+    }, [minPrice, maxPrice]);
 
     const handleAdClick = (adId) => {
         navigate(`/ad/${adId}`);
@@ -77,26 +74,26 @@ function AdTable({ads}) {
         }
     };
 
-    // Dynamically get unique categories from the ads data
-    const categories = [...new Set(ads.map(ad => ad.category))].sort();
+    // Use predefined valid categories instead of dynamic generation to avoid backend validation errors
+    const categories = VALID_CATEGORIES;
 
-    const adsToDisplay = showMineOnly ? userAds : (ads || []);
+    // Use all ads from backend, or user-specific ads when "Show Mine Only" is active
+    const adsToFilter = showMineOnly ? userAds : ads;
+    const safeAdsToDisplay = Array.isArray(adsToFilter) ? adsToFilter : [];
 
-    // Ensure adsToDisplay is always an array
-    const safeAdsToDisplay = Array.isArray(adsToDisplay) ? adsToDisplay : [];
-
+    // Apply all filtering on the frontend
     const filteredAds = safeAdsToDisplay.filter(ad => {
+        // Search filter - check if title contains search query
         const matchesSearch = searchQuery === "" || 
             (ad.title && ad.title.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        // Category filter
         const matchesCategory = selectedCategory === "All Categories" || 
             (ad.category && ad.category.toLowerCase() === selectedCategory.toLowerCase());
         
-        // Backend filtering is active when either min OR max price is provided and we're not showing "mine only"
-        const isBackendFiltering = (minPrice !== "" || maxPrice !== "") && !showMineOnly;
+        // Price range filter
         let matchesPrice = true;
-        
-        if (!isBackendFiltering) {
-            // Apply client-side price filtering
+        if (minPrice !== "" || maxPrice !== "") {
             const adPrice = parseFloat(ad.price) || 0;
             const min = minPrice === "" ? 0 : parseFloat(minPrice) || 0;
             const max = maxPrice === "" ? Infinity : parseFloat(maxPrice) || Infinity;
@@ -105,68 +102,56 @@ function AdTable({ads}) {
         
         return matchesSearch && matchesCategory && matchesPrice;
     });
-
-    // Calculate pagination for filtered results
-    const filteredTotalPages = filteredAds.length > 0 ? Math.ceil(filteredAds.length / 20) : 0;
-    const shouldShowPagination = !showMineOnly; // Only show backend pagination when not filtering by "mine only"
     
-    // Enhanced pagination handlers that respect price filtering
+    // Simple pagination for frontend-filtered results
+    const resultsPerPage = 20;
+    const totalFilteredPages = Math.ceil(filteredAds.length / resultsPerPage);
+    const [currentFilteredPage, setCurrentFilteredPage] = useState(0);
+    
+    // Reset to first page when filters change
+    useEffect(() => {
+        setCurrentFilteredPage(0);
+    }, [searchQuery, selectedCategory, minPrice, maxPrice, showMineOnly]);
+    
+    // Get current page of filtered results
+    const startIndex = currentFilteredPage * resultsPerPage;
+    const endIndex = startIndex + resultsPerPage;
+    const paginatedAds = filteredAds.slice(startIndex, endIndex);
+
     const handleNextPage = useCallback(() => {
-        const isBackendFiltering = (minPrice !== "" || maxPrice !== "") && !showMineOnly;
-        if (isBackendFiltering) {
-            const min = minPrice === "" ? null : parseFloat(minPrice);
-            const max = maxPrice === "" ? null : parseFloat(maxPrice);
-            
-            // Validate the values
-            if ((min === null || !isNaN(min)) && (max === null || !isNaN(max))) {
-                // Ensure min <= max if both are provided
-                if (min === null || max === null || min <= max) {
-                    if (currentPage < totalPages - 1) {
-                        fetchAdsByPriceRange(min, max, currentPage + 1);
-                    }
-                }
-            }
-        } else {
-            goToNextPage();
+        if (currentFilteredPage < totalFilteredPages - 1) {
+            setCurrentFilteredPage(prev => prev + 1);
         }
-    }, [minPrice, maxPrice, showMineOnly, currentPage, totalPages, fetchAdsByPriceRange, goToNextPage]);
+    }, [currentFilteredPage, totalFilteredPages]);
 
     const handlePreviousPage = useCallback(() => {
-        const isBackendFiltering = (minPrice !== "" || maxPrice !== "") && !showMineOnly;
-        if (isBackendFiltering) {
-            const min = minPrice === "" ? null : parseFloat(minPrice);
-            const max = maxPrice === "" ? null : parseFloat(maxPrice);
-            
-            // Validate the values
-            if ((min === null || !isNaN(min)) && (max === null || !isNaN(max))) {
-                // Ensure min <= max if both are provided
-                if (min === null || max === null || min <= max) {
-                    if (currentPage > 0) {
-                        fetchAdsByPriceRange(min, max, currentPage - 1);
-                    }
-                }
-            }
-        } else {
-            goToPreviousPage();
+        if (currentFilteredPage > 0) {
+            setCurrentFilteredPage(prev => prev - 1);
         }
-    }, [minPrice, maxPrice, showMineOnly, currentPage, fetchAdsByPriceRange, goToPreviousPage]);
+    }, [currentFilteredPage]);
     const handleShowMineOnlyChange = async (e) => {
         const checked = e.target.checked;
         setShowMineOnly(checked);
+        setCurrentFilteredPage(0); // Reset to first page when toggling
         
-        if (checked && isAuthenticated && user && fetchUserAds) {
+        if (checked && isAuthenticated && user) {
+            console.log('🔐 Fetching user ads for:', user.username);
+            
             try {
-                setLoadingUserAds(true);
-                const myAds = await fetchUserAds(user.username, user.token);
-                setUserAds(myAds || []); // Ensure we always set an array
-                setLoadingUserAds(false);
+                const userAdsResult = await fetchUserAds(user.username, user.token);
+                console.log('✅ Got user ads:', userAdsResult.length);
+                setUserAds(userAdsResult);
             } catch (error) {
-                console.error('Error fetching user ads:', error);
+                console.error('❌ Error fetching user ads:', error);
+                alert('Unable to load your ads. Please check your authentication and try again.');
+                setShowMineOnly(false);
                 setUserAds([]);
-                setLoadingUserAds(false);
-                alert('Failed to load your ads. Please try again.');
             }
+        } else if (checked && !isAuthenticated) {
+            alert('Please log in to view your ads.');
+            setShowMineOnly(false);
         } else {
+            // If unchecked, clear user ads - filtering will automatically show all ads
             setUserAds([]);
         }
     };
@@ -177,7 +162,7 @@ function AdTable({ads}) {
                 <select 
                     className="category-filter"
                     value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    onChange={handleCategoryChange}
                 >
                     <option>All Categories</option>
                     {categories.map(category => (
@@ -219,9 +204,9 @@ function AdTable({ads}) {
                         step="0.01"
                         title="Press Enter to apply filter"
                     />
-                    {(minPrice !== "" || maxPrice !== "") && !showMineOnly && (
-                        <span className="backend-filter-indicator" title="Using backend filtering">
-                            🔍
+                    {(searchQuery !== "" || selectedCategory !== "All Categories" || minPrice !== "" || maxPrice !== "" || showMineOnly) && (
+                        <span className="backend-filter-indicator" title="Using frontend filtering">
+                            {filteredAds.length} results
                         </span>
                     )}
                 </div>
@@ -259,14 +244,12 @@ function AdTable({ads}) {
             </div>
 
             <div className="ads-grid">
-                {loadingUserAds ? (
-                    <div className="loading-message">Loading your ads...</div>
-                ) : filteredAds.length === 0 && showMineOnly ? (
+                {paginatedAds.length === 0 && showMineOnly ? (
                     <div className="no-ads-message">You haven't posted any ads yet.</div>
-                ) : filteredAds.length === 0 ? (
+                ) : paginatedAds.length === 0 ? (
                     <div className="no-ads-message">No ads found matching your criteria.</div>
                 ) : (
-                    filteredAds.map(ad => (
+                    paginatedAds.map(ad => (
                         <div key={ad.id} className="ad-card" onClick={() => handleAdClick(ad.id)}>
                             <div className="ad-card-image">
                                 <img src={ad.imageUrl} alt={ad.title} className="ad-image" />
@@ -300,23 +283,24 @@ function AdTable({ads}) {
                 )}
             </div>
             
-            {/* Only show pagination when NOT filtering by "mine only" and there are ads to paginate */}
-            {!showMineOnly && (
+            {/* Frontend pagination for filtered results */}
+            {totalFilteredPages > 1 && (
                 <div className="table-pagination">
                     <button 
                         className="prev-btn" 
                         onClick={handlePreviousPage}
-                        disabled={currentPage === 0}
+                        disabled={currentFilteredPage === 0}
                     >
                         Previous
                     </button>
                     <span className="page-info">
-                        Page {currentPage + 1} of {totalPages}
+                        Page {currentFilteredPage + 1} of {totalFilteredPages} 
+                        ({filteredAds.length} total results)
                     </span>
                     <button 
                         className="next-btn"
                         onClick={handleNextPage}
-                        disabled={currentPage >= totalPages - 1}
+                        disabled={currentFilteredPage >= totalFilteredPages - 1}
                     >
                         Next
                     </button>
