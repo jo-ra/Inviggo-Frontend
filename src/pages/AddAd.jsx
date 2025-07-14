@@ -59,18 +59,14 @@ function AddAd() {
         }
 
         try {
-            // Clean approach: Backend extracts username from JWT token
-            // and resolves user ID from username
+            // Match the backend expected format
             const requestBody = {
-                ad: {
-                    title: formData.title,
-                    description: formData.description,
-                    imageUrl: formData.imageUrl,
-                    price: parseFloat(formData.price),
-                    category: formData.category,
-                    city: formData.city
-                }
-                // No need to send userId or username - backend gets it from JWT token
+                title: formData.title,
+                description: formData.description,
+                city: formData.city,
+                category: formData.category,
+                price: parseFloat(formData.price),
+                imageUrl: formData.imageUrl
             };
 
             const response = await fetch('http://localhost:8080/ad/create', {
