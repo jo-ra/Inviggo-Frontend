@@ -7,7 +7,7 @@ import '../css/AddAd.css'; // Reuse the same styles as AddAd
 function EditAd() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { ads, updateAd } = useAds();
+    const { ads, updateAd, refreshAds } = useAds();
     const { user, isAuthenticated } = useAuth();
     
     // State for the ad being edited
@@ -189,8 +189,12 @@ function EditAd() {
                 const updatedAd = await response.json();
                 console.log('✅ Ad updated successfully:', updatedAd);
                 
-                // Update the ad in local state
+                // Update the ad in local state optimistically
                 updateAd(updatedAd);
+                
+                // Also refresh all ads to ensure everything is synchronized
+                console.log('🔄 Refreshing all ads after edit...');
+                await refreshAds();
                 
                 navigate('/ads'); // Navigate to all ads page after editing
             } else {

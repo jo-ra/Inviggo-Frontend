@@ -119,10 +119,10 @@ export const AdsProvider = ({ children }) => {
 
     // Function to refresh ads after creating/updating/deleting
     const refreshAds = useCallback(async () => {
-        console.log('🔄 refreshAds called - fetching latest data...');
-        await fetchAds(currentPage);
-        console.log('✅ refreshAds completed');
-    }, [fetchAds, currentPage]);
+        console.log('🔄 refreshAds called - fetching ALL latest data...');
+        await fetchAllAds(); // Use fetchAllAds instead of fetchAds
+        console.log('✅ refreshAds completed - all ads reloaded');
+    }, [fetchAllAds]);
 
     // Navigation functions
     const goToNextPage = useCallback(() => {
