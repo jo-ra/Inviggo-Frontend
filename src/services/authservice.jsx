@@ -63,6 +63,12 @@ class AuthService{
         localStorage.removeItem("user");
     }
 
+    // Method to clear authentication data (for backend restarts or token expiry)
+    clearAuth(){
+        localStorage.removeItem("user");
+        console.log('🧹 Authentication data cleared from localStorage');
+    }
+
 
     getCurrentUser() {
         const user = localStorage.getItem("user");
