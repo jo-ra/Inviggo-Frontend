@@ -1,67 +1,83 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { VALID_CATEGORIES } from './constants/categories';
+import { useAds } from './services/AdsContext';
 
 
 interface Ad {
   id: number;
   title: string;
+  description: string;
   price: number;
   city: string;
   category: string;
   imageUrl: string;
+  sellerName: string;
+  sellerPhone: string;
 }
 
 const AdsHomepage = () => {
-  const [ads, setAds] = useState<Ad[]>([]);
+  // Use AdsContext instead of local state
+  const {
+    ads,
+    loading,
+    error,
+    currentPage,
+    totalPages,
+    totalElements,
+    fetchFilteredAds,
+    goToNextPage,
+    goToPreviousPage,
+    goToFirstPage,
+    goToLastPage
+  } = useAds();
 
-  // Remove currentUser and showMineOnly filter
-  // const [currentUser, setCurrentUser] = useState({ id: 1 });
-
-  useEffect(() => {
-    fetch('http://localhost:8080/ad/getAll')
-      .then(res => res.json())
-      .then(data => setAds(data.content ?? []))
-      .catch(err => console.error(err));
-  }, []);
-
-  // Remove showMineOnly state
+  // Filter states for comprehensive filtering
   const [searchName, setSearchName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
-  // const [showMineOnly, setShowMineOnly] = useState(false);
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const adsPerPage = 20;
 
   const categories = VALID_CATEGORIES;
 
+  // Use filters to fetch filtered ads from backend
+  useEffect(() => {
+    // Since we now load all ads upfront, we don't need to fetch on filter change
+    // The filtering will happen on the frontend for better performance
+    console.log('🔍 Filter changed, frontend filtering will apply automatically');
+  }, [searchName, selectedCategory, minPrice, maxPrice]);
+
+  // Frontend filtering with all ads loaded
   const filteredAds = useMemo(() => {
+    console.log('🔍 Filtering ads...');
+    console.log('🔍 Filter criteria:', { searchName, selectedCategory, minPrice, maxPrice });
+    console.log('🔍 Total ads before filtering:', ads.length);
+
     let filtered = ads.filter(ad => {
       const nameMatch = ad.title.toLowerCase().includes(searchName.toLowerCase());
       const categoryMatch = selectedCategory === '' || ad.category === selectedCategory;
       const minPriceMatch = minPrice === '' || ad.price >= parseFloat(minPrice);
       const maxPriceMatch = maxPrice === '' || ad.price <= parseFloat(maxPrice);
-      // Remove userMatch
-      return nameMatch && categoryMatch && minPriceMatch && maxPriceMatch;
+
+      const matches = nameMatch && categoryMatch && minPriceMatch && maxPriceMatch;
+
+      return matches;
     });
 
-    return filtered.sort((a, b) => {
-      if ('postedDate' in a && 'postedDate' in b) {
-        return new Date((b as any).postedDate).getTime() - new Date((a as any).postedDate).getTime();
-      }
-      return 0;
-    });
+    console.log('🔍 Filtered ads count:', filtered.length);
+    return filtered;
   }, [ads, searchName, selectedCategory, minPrice, maxPrice]);
 
-  const totalPages = Math.ceil(filteredAds.length / adsPerPage);
-  const indexOfLastAd = currentPage * adsPerPage;
+  // Frontend pagination
+  const adsPerPage = 20;
+  const [currentPageLocal, setCurrentPageLocal] = useState(1);
+  const totalPagesLocal = Math.ceil(filteredAds.length / adsPerPage);
+  const indexOfLastAd = currentPageLocal * adsPerPage;
   const indexOfFirstAd = indexOfLastAd - adsPerPage;
   const currentAds = filteredAds.slice(indexOfFirstAd, indexOfLastAd);
 
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPageLocal(pageNumber);
   };
 
   const handleEdit = (adId) => {
@@ -87,8 +103,7 @@ const AdsHomepage = () => {
     setSelectedCategory('');
     setMinPrice('');
     setMaxPrice('');
-    // setShowMineOnly(false);
-    setCurrentPage(1);
+    setCurrentPageLocal(1); // Reset to first page when clearing filters
   };
 
   return (
@@ -97,6 +112,13 @@ const AdsHomepage = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Marketplace Ads</h1>
         <p className="text-gray-600">Browse and manage classified advertisements</p>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
 
       {/* Filters Section */}
       <div className="bg-gray-50 p-6 rounded-lg mb-6 shadow-sm">
@@ -251,24 +273,35 @@ const AdsHomepage = () => {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {totalPagesLocal > 1 && (
         <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-6">
+          {loading && (
+            <div className="bg-blue-100 p-2 rounded mb-4 text-sm">
+              <strong>Loading...</strong> Fetching ads...
+            </div>
+          )}
+
+          <div className="bg-yellow-100 p-2 rounded mb-4 text-sm">
+            <strong>Debug Info:</strong> Total Pages: {totalPagesLocal}, Current Page: {currentPageLocal}, Filtered Ads: {filteredAds.length}, Total Ads: {ads.length}
+          </div>
+
           <div className="flex flex-1 justify-between sm:hidden">
             <button
-              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
+              onClick={() => handlePageChange(Math.max(1, currentPageLocal - 1))}
+              disabled={currentPageLocal === 1 || loading}
               className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
             <button
-              onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(Math.min(totalPagesLocal, currentPageLocal + 1))}
+              disabled={currentPageLocal >= totalPagesLocal || loading}
               className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
           </div>
+
           <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-gray-700">
@@ -284,30 +317,40 @@ const AdsHomepage = () => {
             <div>
               <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
                 <button
-                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(Math.max(1, currentPageLocal - 1))}
+                  disabled={currentPageLocal === 1 || loading}
                   className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                {[...Array(totalPages)].map((_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => handlePageChange(pageNum)}
-                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${pageNum === currentPage
-                        ? 'bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
-                        : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                        }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
+
+                {/* Show page numbers (max 5 visible) */}
+                {(() => {
+                  const maxVisible = 5;
+                  const startPage = Math.max(1, Math.min(currentPageLocal - 2, totalPagesLocal - maxVisible + 1));
+                  const endPage = Math.min(totalPagesLocal, startPage + maxVisible - 1);
+
+                  return Array.from({ length: endPage - startPage + 1 }, (_, i) => {
+                    const pageNum = startPage + i;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${pageNum === currentPageLocal
+                          ? 'bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                          : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                          }`}
+                        disabled={loading}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  });
+                })()}
+
                 <button
-                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(Math.min(totalPagesLocal, currentPageLocal + 1))}
+                  disabled={currentPageLocal >= totalPagesLocal || loading}
                   className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronRight className="h-5 w-5" />

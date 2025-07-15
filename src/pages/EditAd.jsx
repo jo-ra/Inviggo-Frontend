@@ -192,7 +192,7 @@ function EditAd() {
                 // Update the ad in local state
                 updateAd(updatedAd);
                 
-                navigate(`/ad/${id}`); // Navigate back to ad details
+                navigate('/ads'); // Navigate to all ads page after editing
             } else {
                 const errorData = await response.text();
                 console.error('❌ Failed to update ad:', response.status, errorData);

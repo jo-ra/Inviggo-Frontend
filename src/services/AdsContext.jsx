@@ -62,10 +62,60 @@ export const AdsProvider = ({ children }) => {
         }
     }, []);
 
+    // Function to fetch all ads (for comprehensive filtering)
+    const fetchAllAds = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            console.log('🔄 Fetching ALL ads from API...');
+            
+            let allAds = [];
+            let currentPageNum = 0;
+            let hasMorePages = true;
+            
+            while (hasMorePages) {
+                console.log(`🔄 Fetching page ${currentPageNum}...`);
+                const response = await fetch(`http://localhost:8080/ad/getAll?page=${currentPageNum}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log(`📥 Page ${currentPageNum} response:`, data);
+                
+                const pageAds = data.content ?? [];
+                allAds = [...allAds, ...pageAds];
+                
+                // Check if there are more pages
+                hasMorePages = !data.last && pageAds.length > 0;
+                currentPageNum++;
+                
+                console.log(`📋 Page ${currentPageNum - 1} ads: ${pageAds.length}, Total so far: ${allAds.length}`);
+            }
+            
+            console.log('📊 Total ads fetched from all pages:', allAds.length);
+            
+            // Sanitize all ads data to fix invalid categories
+            const sanitizedAds = sanitizeAds(allAds);
+            console.log('🧹 Sanitized all ads array:', sanitizedAds);
+            
+            setAds(sanitizedAds);
+            setCurrentPage(0);
+            setTotalPages(Math.ceil(sanitizedAds.length / 20)); // Frontend pagination
+            setTotalElements(sanitizedAds.length);
+        } catch (err) {
+            console.error('❌ Error fetching all ads:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     // Fetch ads on component mount
     useEffect(() => {
-        fetchAds();
-    }, []);
+        fetchAllAds(); // Fetch all ads instead of just first page
+    }, [fetchAllAds]);
 
     // Function to refresh ads after creating/updating/deleting
     const refreshAds = useCallback(async () => {
@@ -309,7 +359,8 @@ export const AdsProvider = ({ children }) => {
         fetchUserAds,
         fetchAdsByPriceRange,
         fetchFilteredAds,
-        fetchAds
+        fetchAds,
+        fetchAllAds
     };
 
     return (
