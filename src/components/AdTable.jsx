@@ -68,7 +68,14 @@ function AdTable({ads}) {
         
         if (confirmed) {
             const success = await deleteAdFromBackend(adId, user.token);
-            if (!success) {
+            if (success) {
+                // Clear "Show Mine Only" filter to show all ads after deletion
+                setShowMineOnly(false);
+                // Clear other filters as well to ensure user sees all ads
+                clearFilters();
+                // Redirect to simple ads page after successful deletion
+                navigate('/ads');
+            } else {
                 alert('Failed to delete the ad. Please try again.');
             }
         }

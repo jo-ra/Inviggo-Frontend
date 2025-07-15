@@ -25,6 +25,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/ads" element={<Home />} />
+          <Route path="/ads-advanced" element={<AdsHomepage />} />
           <Route path="/ad/:id" element={<AdDetails />} />
           <Route path="/add-ad" element={<AddAd />} />
           <Route path="/edit-ad/:id" element={<EditAd />} />

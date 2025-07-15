@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { VALID_CATEGORIES } from './constants/categories';
 import { useAds } from './services/AdsContext';
+import { useAuth } from './services/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 
 interface Ad {
@@ -29,8 +31,13 @@ const AdsHomepage = () => {
     goToNextPage,
     goToPreviousPage,
     goToFirstPage,
-    goToLastPage
+    goToLastPage,
+    deleteAdFromBackend,
+    refreshAds
   } = useAds();
+
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   // Filter states for comprehensive filtering
   const [searchName, setSearchName] = useState('');
@@ -80,13 +87,57 @@ const AdsHomepage = () => {
     setCurrentPageLocal(pageNumber);
   };
 
-  const handleEdit = (adId) => {
-    alert(`Edit ad ${adId}`);
+  const handleEdit = (adId: number) => {
+    // Navigate to edit page
+    navigate(`/edit-ad/${adId}`);
   };
 
-  const handleDelete = (adId) => {
-    if (window.confirm('Are you sure you want to delete this ad?')) {
-      alert(`Delete ad ${adId}`);
+  const handleDelete = async (adId: number) => {
+    if (!isAuthenticated || !user) {
+      alert('You must be logged in to delete ads');
+      return;
+    }
+
+    // Find the ad to check if user owns it
+    const adToDelete = ads.find(ad => ad.id === adId);
+    if (!adToDelete) {
+      alert('Ad not found');
+      return;
+    }
+
+    // Check if user owns this ad
+    if (adToDelete.sellerName !== user.username) {
+      alert('You can only delete your own ads');
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to delete "${adToDelete.title}"? This action cannot be undone.`)) {
+      try {
+        console.log(`🗑️ Deleting ad ${adId}...`);
+        const success = await deleteAdFromBackend(adId, user.token);
+
+        if (success) {
+          console.log('✅ Ad deleted successfully!');
+
+          // Refresh all ads to ensure consistency
+          await refreshAds();
+
+          // Reset to first page if needed (the filtering and pagination will update automatically)
+          // The useMemo for filteredAds will recalculate after refreshAds updates the ads array
+          setCurrentPageLocal(1);
+
+          // Show success message
+          alert('Ad deleted successfully!');
+
+          // Navigate back to the simple ads page
+          navigate('/ads');
+        } else {
+          alert('Failed to delete ad. Please try again.');
+        }
+      } catch (error) {
+        console.error('❌ Error deleting ad:', error);
+        alert('An error occurred while deleting the ad. Please try again.');
+      }
     }
   };
 
@@ -256,7 +307,26 @@ const AdsHomepage = () => {
                     <div className="text-sm text-gray-500">{formatDate(ad.postedDate)}</div>
                   </td> */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <span className="text-gray-400">-</span>
+                    {isAuthenticated && user && ad.sellerName === user.username ? (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(ad.id)}
+                          className="text-blue-600 hover:text-blue-900 flex items-center"
+                          title="Edit ad"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(ad.id)}
+                          className="text-red-600 hover:text-red-900 flex items-center"
+                          title="Delete ad"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                 </tr>
               ))}
