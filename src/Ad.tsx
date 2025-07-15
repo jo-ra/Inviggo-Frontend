@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from './services/AuthContext';
+import { useAds } from './services/AdsContext';
 import { VALID_CATEGORIES } from './constants/categories';
 
 
@@ -10,20 +13,23 @@ interface Ad {
   city: string;
   category: string;
   imageUrl: string;
+  username?: string; // Add username to know who owns the ad
+  sellerName?: string; // Alternative field name for owner
+  postedDate?: string; // Add posted date
 }
 
 const AdsHomepage = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const { ads: contextAds, loading, refreshAds, deleteAdFromBackend } = useAds();
   const [ads, setAds] = useState<Ad[]>([]);
 
-  // Remove currentUser and showMineOnly filter
-  // const [currentUser, setCurrentUser] = useState({ id: 1 });
-
+  // Use ads from context instead of separate fetch
   useEffect(() => {
-    fetch('http://localhost:8080/ad/getAll')
-      .then(res => res.json())
-      .then(data => setAds(data.content ?? []))
-      .catch(err => console.error(err));
-  }, []);
+    if (contextAds && contextAds.length > 0) {
+      setAds(contextAds);
+    }
+  }, [contextAds]);
 
   // Remove showMineOnly state
   const [searchName, setSearchName] = useState('');
@@ -64,14 +70,40 @@ const AdsHomepage = () => {
     setCurrentPage(pageNumber);
   };
 
-  const handleEdit = (adId) => {
-    alert(`Edit ad ${adId}`);
+  const handleEdit = (adId: number) => {
+    console.log('🔄 Navigating to edit ad:', adId);
+    console.log('🔄 Current user:', user?.username);
+    navigate(`/edit-ad/${adId}`);
   };
 
-  const handleDelete = (adId) => {
-    if (window.confirm('Are you sure you want to delete this ad?')) {
-      alert(`Delete ad ${adId}`);
+  const handleDelete = async (ad: Ad) => {
+    if (window.confirm(`Are you sure you want to delete "${ad.title}"?`)) {
+      if (isAuthenticated && user?.token) {
+        const success = await deleteAdFromBackend(ad.id, user.token);
+        if (success) {
+          // Ad is already removed from context by deleteAdFromBackend
+          console.log('✅ Ad deleted successfully');
+        } else {
+          alert('Failed to delete ad. Please try again.');
+        }
+      } else {
+        alert('You must be logged in to delete ads.');
+      }
     }
+  };
+
+  // Function to check if current user owns the ad
+  const isOwner = (ad: Ad) => {
+    const owns = isAuthenticated && user?.username && 
+                 (user.username === ad.username || user.username === ad.sellerName);
+    console.log('🔍 Ownership check:', {
+      isAuthenticated,
+      userUsername: user?.username,
+      adUsername: ad.username,
+      adSellerName: ad.sellerName,
+      owns
+    });
+    return owns;
   };
 
   const formatDate = (dateString) => {
@@ -230,11 +262,32 @@ const AdsHomepage = () => {
                       {ad.category}
                     </span>
                   </td>
-                  {/* <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{formatDate(ad.postedDate)}</div>
-                  </td> */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">
+                      {ad.postedDate ? formatDate(ad.postedDate) : '-'}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <span className="text-gray-400">-</span>
+                    {isOwner(ad) ? (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(ad.id)}
+                          className="text-indigo-600 hover:text-indigo-900 transition-colors duration-200"
+                          title="Edit ad"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(ad)}
+                          className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                          title="Delete ad"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                 </tr>
               ))}

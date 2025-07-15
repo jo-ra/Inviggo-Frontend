@@ -72,7 +72,12 @@ function EditAd() {
     useEffect(() => {
         if (adToEdit) {
             // Check if user owns this ad
-            if (!isAuthenticated || !user || adToEdit.sellerName !== user.username) {
+            if (!isAuthenticated || !user || (adToEdit.sellerName !== user.username && adToEdit.username !== user.username)) {
+                console.log('❌ User does not own this ad:', {
+                    userUsername: user?.username,
+                    adSellerName: adToEdit.sellerName,
+                    adUsername: adToEdit.username
+                });
                 navigate('/ads'); // Redirect if not owner
                 return;
             }
