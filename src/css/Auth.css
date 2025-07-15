@@ -112,8 +112,8 @@
 }
 
 .auth-btn {
-    background: #ff6b35;
-    color: white;
+    background: #ff6b35 !important;
+    color: white !important;
     border: none;
     padding: 14px;
     border-radius: 8px;
@@ -125,7 +125,7 @@
 }
 
 .auth-btn:hover {
-    background: #e55a2e;
+    background: #e55a2e !important;
 }
 
 .auth-btn:active {

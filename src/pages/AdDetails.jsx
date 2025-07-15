@@ -167,6 +167,21 @@ function AdDetails() {
                         <p>{ad.description || 'No description available for this item.'}</p>
                     </div>
                     
+                    {ad.createdAt && (
+                        <div className="ad-posted-date">
+                            <span className="posted-label">Posted at: </span>
+                            <span className="posted-value">
+                                {new Date(ad.createdAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </span>
+                        </div>
+                    )}
+                    
                     <div className="seller-info">
                         <h3>Seller Information</h3>
                         <div className="seller-card">

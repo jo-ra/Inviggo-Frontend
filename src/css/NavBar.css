@@ -47,7 +47,7 @@
 /* Button styling for login and register links */
 .auth-section a {
   background-color: white;
-  color: #ff6b35;
+  color: #ffffff;
   padding: 0.5rem 1rem;
   border-radius: 5px;
   text-decoration: none;
@@ -57,13 +57,13 @@
 
 .auth-section a:hover {
   background-color: #f0f0f0;
-  color: #e55a2b;
+  color: #ffffff;
   transform: translateY(-2px);
 }
 
 .auth-btn {
-  background-color: white;
-  color: #ff6b35;
+  background-color: #ffffff;
+  color: #ffffff;
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 5px;
@@ -80,8 +80,8 @@
 }
 
 .logout-btn {
-  background-color: white;
-  color: #ff6b35;
+  background-color: #ff6b35;
+  color: #ffffff;
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 5px;
@@ -94,6 +94,24 @@
   background-color: #f0f0f0;
   color: #e55a2b;
   transform: translateY(-2px);
+}
+
+.add-ad-nav-btn {
+  background-color: #22c55e;
+  color: white;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.add-ad-nav-btn:hover {
+  background-color: #16a34a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(34, 197, 94, 0.3);
 }
 
 @media (max-width: 768px) {

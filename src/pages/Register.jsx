@@ -31,21 +31,50 @@ function Register() {
         setError('');
         setSuccess('');
         
+        // Check if passwords match before making API call
         if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match!');
+            setError('Passwords do not match! Please make sure both password fields are identical.');
+            setLoading(false);
+            return;
+        }
+        
+        // Check password strength (optional - you can remove this if not needed)
+        if (formData.password.length < 6) {
+            setError('Password must be at least 6 characters long.');
             setLoading(false);
             return;
         }
         
         try {
             const result = await register(formData.username, formData.password, formData.phoneNumber);
-            setSuccess(result.message);
+            setSuccess(result.message || 'Account created successfully! Redirecting to home page...');
             // Redirect to login after successful registration
             setTimeout(() => {
                 navigate('/');
             }, 2000);
         } catch (error) {
-            setError(error.message);
+            // Handle specific error messages from the backend
+            let errorMessage = error.message;
+            
+            // Provide more user-friendly error messages
+            if (errorMessage.toLowerCase().includes('username') && errorMessage.toLowerCase().includes('taken')) {
+                errorMessage = 'Username is taken. Please choose a different username.';
+            } else if (errorMessage.toLowerCase().includes('username') && errorMessage.toLowerCase().includes('exists')) {
+                errorMessage = 'Username is taken. Please choose a different username.';
+            } else if (errorMessage.toLowerCase().includes('user') && errorMessage.toLowerCase().includes('already')) {
+                errorMessage = 'Username is taken. Please choose a different username.';
+            } else if (errorMessage === 'Registration failed') {
+                // Since backend returns generic "Registration failed" for username conflicts,
+                // we'll assume it's likely a username issue and provide helpful guidance
+                errorMessage = 'Username is taken. Please choose a different username.';
+            } else if (errorMessage === 'Network error') {
+                errorMessage = 'Network error. Please check your connection and try again.';
+            } else {
+                // For any other errors, provide a helpful message
+                errorMessage = 'Registration failed. This username might be taken or there was an issue with your information. Please try a different username.';
+            }
+            
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -125,14 +154,6 @@ function Register() {
                             {success}
                         </div>
                     )}
-
-                    <div className="form-options">
-                        <label className="checkbox-container">
-                            <input type="checkbox" required />
-                            <span className="checkmark"></span>
-                            I agree to the <Link to="/terms" className="terms-link">Terms & Conditions</Link>
-                        </label>
-                    </div>
 
                     <button type="submit" className="auth-btn" disabled={loading}>
                         {loading ? 'Creating Account...' : 'Create Account'}

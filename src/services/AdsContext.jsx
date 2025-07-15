@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { sanitizeCategory } from '../constants/categories';
 
 const AdsContext = createContext();
 
@@ -18,13 +19,28 @@ export const AdsProvider = ({ children }) => {
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
 
-    const fetchAds = async (page = 0) => {
+    // Function to sanitize ads data - fix invalid categories and sort by creation date
+    const sanitizeAds = (adsArray) => {
+        const sanitized = adsArray.map(ad => ({
+            ...ad,
+            category: sanitizeCategory(ad.category)
+        }));
+        
+        // Sort by createdAt in descending order (newest first)
+        return sanitized.sort((a, b) => {
+            if (!a.createdAt || !b.createdAt) return 0;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+    };
+
+    const fetchAds = useCallback(async (page = 0) => {
         try {
             setLoading(true);
             setError(null);
             console.log(`🔄 Fetching ads from API... Page: ${page}`);
             
-            const response = await fetch(`http://localhost:8080/ad/getAll?page=${page}`);
+            // Add sorting by createdAt in descending order (newest first) with standard page size
+            const response = await fetch(`http://localhost:8080/ad/getAll?page=${page}&size=20&sort=createdAt,desc`);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -34,10 +50,14 @@ export const AdsProvider = ({ children }) => {
             console.log('📥 Raw API response:', data);
             
             const adsArray = data.content ?? data ?? [];
-            console.log('📋 Setting ads array:', adsArray);
+            console.log('📋 Raw ads array:', adsArray);
             console.log('📊 Number of ads:', adsArray.length);
             
-            setAds(adsArray);
+            // Sanitize ads data to fix invalid categories
+            const sanitizedAds = sanitizeAds(adsArray);
+            console.log('🧹 Sanitized ads array:', sanitizedAds);
+            
+            setAds(sanitizedAds);
             setCurrentPage(data.number || 0);
             setTotalPages(data.totalPages || 1);
             setTotalElements(data.totalElements || adsArray.length);
@@ -47,40 +67,91 @@ export const AdsProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    // Function to fetch all ads (for comprehensive filtering)
+    const fetchAllAds = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            console.log('🔄 Fetching ALL ads from API...');
+            
+            let allAds = [];
+            let currentPageNum = 0;
+            let hasMorePages = true;
+            
+            while (hasMorePages) {
+                console.log(`🔄 Fetching page ${currentPageNum}...`);
+                // Add sorting by createdAt in descending order (newest first) with standard page size
+                const response = await fetch(`http://localhost:8080/ad/getAll?page=${currentPageNum}&size=20&sort=createdAt,desc`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log(`📥 Page ${currentPageNum} response:`, data);
+                
+                const pageAds = data.content ?? [];
+                allAds = [...allAds, ...pageAds];
+                
+                // Check if there are more pages
+                hasMorePages = !data.last && pageAds.length > 0;
+                currentPageNum++;
+                
+                console.log(`📋 Page ${currentPageNum - 1} ads: ${pageAds.length}, Total so far: ${allAds.length}`);
+            }
+            
+            console.log('📊 Total ads fetched from all pages:', allAds.length);
+            
+            // Sanitize all ads data to fix invalid categories
+            const sanitizedAds = sanitizeAds(allAds);
+            console.log('🧹 Sanitized all ads array:', sanitizedAds);
+            
+            setAds(sanitizedAds);
+            setCurrentPage(0);
+            setTotalPages(Math.ceil(sanitizedAds.length / 20)); // Frontend pagination
+            setTotalElements(sanitizedAds.length);
+        } catch (err) {
+            console.error('❌ Error fetching all ads:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     // Fetch ads on component mount
     useEffect(() => {
-        fetchAds();
-    }, []);
+        fetchAllAds(); // Fetch all ads instead of just first page
+    }, [fetchAllAds]);
 
     // Function to refresh ads after creating/updating/deleting
-    const refreshAds = async () => {
-        console.log('🔄 refreshAds called - fetching latest data...');
-        await fetchAds(currentPage);
-        console.log('✅ refreshAds completed');
-    };
+    const refreshAds = useCallback(async () => {
+        console.log('🔄 refreshAds called - fetching ALL latest data...');
+        await fetchAllAds(); // Use fetchAllAds instead of fetchAds
+        console.log('✅ refreshAds completed - all ads reloaded');
+    }, [fetchAllAds]);
 
     // Navigation functions
-    const goToNextPage = () => {
+    const goToNextPage = useCallback(() => {
         if (currentPage < totalPages - 1) {
             fetchAds(currentPage + 1);
         }
-    };
+    }, [currentPage, totalPages, fetchAds]);
 
-    const goToPreviousPage = () => {
+    const goToPreviousPage = useCallback(() => {
         if (currentPage > 0) {
             fetchAds(currentPage - 1);
         }
-    };
+    }, [currentPage, fetchAds]);
 
-    const goToFirstPage = async () => {
+    const goToFirstPage = useCallback(async () => {
         await fetchAds(0);
-    };
+    }, [fetchAds]);
 
-    const goToLastPage = async () => {
+    const goToLastPage = useCallback(async () => {
         await fetchAds(totalPages - 1);
-    };
+    }, [fetchAds, totalPages]);
 
     // Function to add a new ad optimistically (without refetching)
     const addAd = (newAd) => {
@@ -144,15 +215,138 @@ export const AdsProvider = ({ children }) => {
             
             // Extract the ads array from the response (handle both paginated and direct array responses)
             const userAds = data.content ?? data ?? [];
-            console.log('📋 User ads array:', userAds);
+            console.log('📋 Raw user ads array:', userAds);
             console.log('📊 Number of user ads:', userAds.length);
             
-            return userAds;
+            // Sanitize user ads data to fix invalid categories
+            const sanitizedUserAds = sanitizeAds(userAds);
+            console.log('🧹 Sanitized user ads array:', sanitizedUserAds);
+            
+            return sanitizedUserAds;
         } catch (err) {
             console.error('❌ Error fetching user ads:', err);
             return [];
         }
     };
+
+    // Function to fetch filtered ads using the comprehensive backend endpoint
+    const fetchFilteredAds = useCallback(async (filters = {}, page = 0, userToken = null) => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            const { category, title, minPrice, maxPrice, showMineOnly } = filters;
+            
+            console.log(`🔄 Fetching filtered ads...`, filters, `Page: ${page}`);
+            console.log(`🔑 User token provided:`, userToken ? 'Yes (length: ' + userToken.length + ')' : 'No');
+            console.log(`🔑 Token preview:`, userToken ? userToken.substring(0, 20) + '...' : 'N/A');
+            
+            // If showMineOnly is requested but no token provided, handle gracefully
+            if (showMineOnly && !userToken) {
+                console.warn('⚠️ showMineOnly requested but no user token provided');
+                setAds([]);
+                setCurrentPage(0);
+                setTotalPages(0);
+                setTotalElements(0);
+                return [];
+            }
+            
+            // Build URL with all the filter parameters and sorting
+            let url = `http://localhost:8080/ad/filter?page=${page}&size=20&sort=createdAt,desc`;
+            
+            if (category && category !== "All Categories") {
+                url += `&category=${encodeURIComponent(category)}`;
+            }
+            if (title && title.trim() !== "") {
+                url += `&title=${encodeURIComponent(title.trim())}`;
+            }
+            if (minPrice !== null && minPrice !== undefined && minPrice !== "") {
+                url += `&minPrice=${minPrice}`;
+            }
+            if (maxPrice !== null && maxPrice !== undefined && maxPrice !== "") {
+                url += `&maxPrice=${maxPrice}`;
+            }
+            if (showMineOnly && userToken) {
+                url += `&showMineOnly=true`;
+            }
+            
+            console.log(`📡 Comprehensive filter API URL: ${url}`);
+            
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            // Add authorization header if user token is provided
+            if (userToken) {
+                headers['Authorization'] = `Bearer ${userToken}`;
+                console.log(`🔐 Added Authorization header with token`);
+            }
+            
+            console.log(`📤 Making request with headers:`, headers);
+            
+            const response = await fetch(url, { headers });
+            
+            console.log(`📥 Response status: ${response.status}`);
+            
+            if (!response.ok) {
+                if (response.status === 403) {
+                    console.error('❌ 403 Forbidden - Authentication failed');
+                    if (showMineOnly) {
+                        // If this was a "show mine only" request, fall back to showing empty results
+                        setAds([]);
+                        setCurrentPage(0);
+                        setTotalPages(0);
+                        setTotalElements(0);
+                        return [];
+                    }
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('📥 Comprehensive filtered ads response:', data);
+            
+            const adsArray = data.content ?? data ?? [];
+            console.log('📋 Raw comprehensive filtered ads array:', adsArray);
+            
+            // Sanitize ads data to fix invalid categories
+            const sanitizedAds = sanitizeAds(adsArray);
+            console.log('🧹 Sanitized comprehensive filtered ads array:', sanitizedAds);
+            
+            setAds(sanitizedAds);
+            setCurrentPage(data.number || 0);
+            setTotalPages(data.totalPages || 1);
+            setTotalElements(data.totalElements || adsArray.length);
+            
+            return adsArray;
+        } catch (err) {
+            console.error('❌ Error fetching filtered ads:', err);
+            
+            // If this was a "show mine only" request that failed, show user-friendly message
+            if (filters.showMineOnly) {
+                console.log('🏠 "Show mine only" request failed, setting empty results');
+                setAds([]);
+                setCurrentPage(0);
+                setTotalPages(0);
+                setTotalElements(0);
+                setError('Unable to load your ads. Please check your authentication.');
+                return [];
+            }
+            
+            setError(err.message);
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Function to fetch ads by price range from backend (keeping for backward compatibility)
+    const fetchAdsByPriceRange = useCallback(async (minPrice, maxPrice, page = 0) => {
+        return await fetchFilteredAds({
+            minPrice,
+            maxPrice
+        }, page);
+    }, [fetchFilteredAds]);
 
     const value = {
         ads,
@@ -170,7 +364,11 @@ export const AdsProvider = ({ children }) => {
         goToPreviousPage,
         goToFirstPage,
         goToLastPage,
-        fetchUserAds
+        fetchUserAds,
+        fetchAdsByPriceRange,
+        fetchFilteredAds,
+        fetchAds,
+        fetchAllAds
     };
 
     return (

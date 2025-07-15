@@ -7,7 +7,7 @@ import '../css/AddAd.css'; // Reuse the same styles as AddAd
 function EditAd() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { ads, updateAd } = useAds();
+    const { ads, updateAd, refreshAds } = useAds();
     const { user, isAuthenticated } = useAuth();
     
     // State for the ad being edited
@@ -72,12 +72,7 @@ function EditAd() {
     useEffect(() => {
         if (adToEdit) {
             // Check if user owns this ad
-            if (!isAuthenticated || !user || (adToEdit.sellerName !== user.username && adToEdit.username !== user.username)) {
-                console.log('❌ User does not own this ad:', {
-                    userUsername: user?.username,
-                    adSellerName: adToEdit.sellerName,
-                    adUsername: adToEdit.username
-                });
+            if (!isAuthenticated || !user || adToEdit.sellerName !== user.username) {
                 navigate('/ads'); // Redirect if not owner
                 return;
             }
@@ -194,10 +189,14 @@ function EditAd() {
                 const updatedAd = await response.json();
                 console.log('✅ Ad updated successfully:', updatedAd);
                 
-                // Update the ad in local state
+                // Update the ad in local state optimistically
                 updateAd(updatedAd);
                 
-                navigate(`/ad/${id}`); // Navigate back to ad details
+                // Also refresh all ads to ensure everything is synchronized
+                console.log('🔄 Refreshing all ads after edit...');
+                await refreshAds();
+                
+                navigate('/ads'); // Navigate to all ads page after editing
             } else {
                 const errorData = await response.text();
                 console.error('❌ Failed to update ad:', response.status, errorData);

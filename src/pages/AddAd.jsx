@@ -7,7 +7,7 @@ import '../css/AddAd.css';
 function AddAd() {
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();
-    const { refreshAds, addAd, goToLastPage } = useAds();
+    const { refreshAds } = useAds();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     
@@ -59,7 +59,7 @@ function AddAd() {
         }
 
         try {
-            // Match the backend expected format
+            // Match the backend expected format - flat structure with imageUrl
             const requestBody = {
                 title: formData.title,
                 description: formData.description,
@@ -81,8 +81,9 @@ function AddAd() {
             if (response.ok) {
                 console.log('✅ Ad created successfully!');
                 
-                // Navigate to last page to see the new ad (new ads are added at the end)
-                await goToLastPage();
+                // Refresh all ads to include the new ad
+                console.log('🔄 Refreshing all ads after creation...');
+                await refreshAds();
                 
                 console.log('🚀 Navigating to /ads');
                 navigate('/ads');

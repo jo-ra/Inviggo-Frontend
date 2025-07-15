@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAds } from '../services/AdsContext';
 import { useAuth } from '../services/AuthContext';
+import { VALID_CATEGORIES, isValidCategory, sanitizeCategory } from '../constants/categories';
 import '../css/AdTable.css';
 
 function AdTable({ads}) {
@@ -12,24 +13,51 @@ function AdTable({ads}) {
     const navigate = useNavigate();
     const [showMineOnly, setShowMineOnly] = useState(false);
     const [userAds, setUserAds] = useState([]);
-    const [loadingUserAds, setLoadingUserAds] = useState(false);
-    const { currentPage, totalPages, goToNextPage, goToPreviousPage, deleteAdFromBackend, fetchUserAds } = useAds();
+    const { currentPage, totalPages, goToNextPage, goToPreviousPage, deleteAdFromBackend, fetchFilteredAds, fetchAds, fetchUserAds } = useAds();
     const { user, isAuthenticated } = useAuth();
 
-    const handleSearch = (e) => {
+    const handleCategoryChange = async (e) => {
+        const newCategory = e.target.value;
+        setSelectedCategory(newCategory);
+        
+        // Validate category before filtering
+        if (newCategory !== "All Categories" && !isValidCategory(newCategory)) {
+            console.warn(`⚠️ Invalid category selected: ${newCategory}`);
+            alert(`Invalid category: ${newCategory}. Please select a valid category.`);
+            return;
+        }
+        
+        // No need for backend call - filtering is done in filteredAds computed property
+        console.log(`🔍 Category changed to: ${newCategory} - filtering will be applied automatically`);
+    };
+
+    const handleSearch = async (e) => {
         e.preventDefault();
-        // Search is handled by the filtering below
+        // No backend call needed - filtering is done automatically in filteredAds
+        console.log(`🔍 Search triggered: "${searchQuery}" - filtering will be applied automatically`);
     };
 
-    const handleAdClick = (adId) => {
-        navigate(`/ad/${adId}`);
-    };
-
-    const clearFilters = () => {
+    const clearFilters = useCallback(() => {
         setSearchQuery("");
         setSelectedCategory("All Categories");
         setMinPrice("");
         setMaxPrice("");
+        setShowMineOnly(false);
+        setUserAds([]);
+        // No need to fetch - filtering is done automatically
+        console.log('🧹 All filters cleared - showing all ads');
+    }, []);
+
+    // Handle Enter key press on price inputs - no backend call needed
+    const handlePriceKeyPress = useCallback((e) => {
+        if (e.key === 'Enter') {
+            console.log(`🔍 Price filter applied: Min: "${minPrice}", Max: "${maxPrice}"`);
+            // Filtering happens automatically in filteredAds computed property
+        }
+    }, [minPrice, maxPrice]);
+
+    const handleAdClick = (adId) => {
+        navigate(`/ad/${adId}`);
     };
 
     const handleDeleteAd = async (adId, adTitle) => {
@@ -40,84 +68,100 @@ function AdTable({ads}) {
         
         if (confirmed) {
             const success = await deleteAdFromBackend(adId, user.token);
-            if (!success) {
+            if (success) {
+                // Clear "Show Mine Only" filter to show all ads after deletion
+                setShowMineOnly(false);
+                // Clear other filters as well to ensure user sees all ads
+                clearFilters();
+                // Redirect to simple ads page after successful deletion
+                navigate('/ads');
+            } else {
                 alert('Failed to delete the ad. Please try again.');
             }
         }
     };
 
-    // Dynamically get unique categories from the ads data
-    const categories = [...new Set(ads.map(ad => ad.category))].sort();
+    // Use predefined valid categories instead of dynamic generation to avoid backend validation errors
+    const categories = VALID_CATEGORIES;
 
-    const adsToDisplay = showMineOnly ? userAds : (ads || []);
+    // Use all ads from backend, or user-specific ads when "Show Mine Only" is active
+    const adsToFilter = showMineOnly ? userAds : ads;
+    const safeAdsToDisplay = Array.isArray(adsToFilter) ? adsToFilter : [];
 
-    // Ensure adsToDisplay is always an array
-    const safeAdsToDisplay = Array.isArray(adsToDisplay) ? adsToDisplay : [];
-
+    // Apply all filtering on the frontend
     const filteredAds = safeAdsToDisplay.filter(ad => {
+        // Search filter - check if title contains search query
         const matchesSearch = searchQuery === "" || 
             (ad.title && ad.title.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        // Category filter
         const matchesCategory = selectedCategory === "All Categories" || 
             (ad.category && ad.category.toLowerCase() === selectedCategory.toLowerCase());
-        const matchesMinPrice = minPrice === "" || 
-            (ad.price && parseFloat(ad.price) >= parseFloat(minPrice));
-        const matchesMaxPrice = maxPrice === "" || 
-            (ad.price && parseFloat(ad.price) <= parseFloat(maxPrice));
-        return matchesSearch && matchesCategory && matchesMinPrice && matchesMaxPrice;
+        
+        // Price range filter
+        let matchesPrice = true;
+        if (minPrice !== "" || maxPrice !== "") {
+            const adPrice = parseFloat(ad.price) || 0;
+            const min = minPrice === "" ? 0 : parseFloat(minPrice) || 0;
+            const max = maxPrice === "" ? Infinity : parseFloat(maxPrice) || Infinity;
+            matchesPrice = adPrice >= min && adPrice <= max;
+        }
+        
+        return matchesSearch && matchesCategory && matchesPrice;
     });
-
-      // Calculate pagination for filtered results
-    const filteredTotalPages = filteredAds.length > 0 ? Math.ceil(filteredAds.length / 20) : 0;
-    const shouldShowPagination = !showMineOnly; // Only show backend pagination when not filtering by "mine only"
-
-
-    console.log('🎯 AdTable - Total ads:', ads.length);
-    console.log('🎯 AdTable - Show mine only:', showMineOnly);
-    console.log('🎯 AdTable - Search query:', searchQuery);
-    console.log('🎯 AdTable - Selected category:', selectedCategory);
-    console.log('🎯 AdTable - Min price:', minPrice);
-    console.log('🎯 AdTable - Max price:', maxPrice);
-    console.log('🎯 AdTable - User ads:', userAds);
-    console.log('🎯 AdTable - Ads to display:', adsToDisplay);
-    console.log('🎯 AdTable - Safe ads to display:', safeAdsToDisplay);
-    console.log('🎯 AdTable - Filtered ads:', filteredAds.length);
-    console.log('🎯 AdTable - Current page:', currentPage);
-    console.log('🎯 AdTable - Total pages:', totalPages);
-    console.log('🔐 AdTable - Is authenticated:', isAuthenticated);
-    console.log('👤 AdTable - Current user:', user);
     
-    // Log first few ads to see their user data
+    // Simple pagination for frontend-filtered results
+    const resultsPerPage = 20;
+    const totalFilteredPages = Math.ceil(filteredAds.length / resultsPerPage);
+    const [currentFilteredPage, setCurrentFilteredPage] = useState(0);
+    
+    // Reset to first page when filters change
+    useEffect(() => {
+        setCurrentFilteredPage(0);
+    }, [searchQuery, selectedCategory, minPrice, maxPrice, showMineOnly]);
+    
+    // Get current page of filtered results
+    const startIndex = currentFilteredPage * resultsPerPage;
+    const endIndex = startIndex + resultsPerPage;
+    const paginatedAds = filteredAds.slice(startIndex, endIndex);
+
+    const handleNextPage = useCallback(() => {
+        if (currentFilteredPage < totalFilteredPages - 1) {
+            setCurrentFilteredPage(prev => prev + 1);
+        }
+    }, [currentFilteredPage, totalFilteredPages]);
+
+    const handlePreviousPage = useCallback(() => {
+        if (currentFilteredPage > 0) {
+            setCurrentFilteredPage(prev => prev - 1);
+        }
+    }, [currentFilteredPage]);
     const handleShowMineOnlyChange = async (e) => {
         const checked = e.target.checked;
         setShowMineOnly(checked);
+        setCurrentFilteredPage(0); // Reset to first page when toggling
         
-        if (checked && isAuthenticated && user && fetchUserAds) {
+        if (checked && isAuthenticated && user) {
+            console.log('🔐 Fetching user ads for:', user.username);
+            
             try {
-                setLoadingUserAds(true);
-                console.log(`🔄 Fetching ads for user: ${user.username}`);
-                const myAds = await fetchUserAds(user.username, user.token);
-                console.log('📥 Received user ads:', myAds);
-                setUserAds(myAds || []); // Ensure we always set an array
-                setLoadingUserAds(false);
+                const userAdsResult = await fetchUserAds(user.username, user.token);
+                console.log('✅ Got user ads:', userAdsResult.length);
+                setUserAds(userAdsResult);
             } catch (error) {
-                console.error('Error fetching user ads:', error);
+                console.error('❌ Error fetching user ads:', error);
+                alert('Unable to load your ads. Please check your authentication and try again.');
+                setShowMineOnly(false);
                 setUserAds([]);
-                setLoadingUserAds(false);
-                // Optionally show an error message to the user
-                alert('Failed to load your ads. Please try again.');
             }
+        } else if (checked && !isAuthenticated) {
+            alert('Please log in to view your ads.');
+            setShowMineOnly(false);
         } else {
-            console.log('🔄 Unchecking show mine only, clearing user ads');
+            // If unchecked, clear user ads - filtering will automatically show all ads
             setUserAds([]);
         }
     };
-
-    // Add useEffect to log changes in userAds
-    useEffect(() => {
-        console.log('🔄 UserAds state changed:', userAds);
-        console.log('📊 UserAds length:', userAds.length);
-        console.log('📊 Is userAds array?', Array.isArray(userAds));
-    }, [userAds]);
 
     return (
         <div className="ad-table-container">
@@ -125,7 +169,7 @@ function AdTable({ads}) {
                 <select 
                     className="category-filter"
                     value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    onChange={handleCategoryChange}
                 >
                     <option>All Categories</option>
                     {categories.map(category => (
@@ -134,27 +178,46 @@ function AdTable({ads}) {
                         </option>
                     ))}
                 </select>
+                
                 <div className="price-range-filter">
                     <input 
                         type="number" 
-                        placeholder="Min Price" 
+                        placeholder="Min price" 
                         className="price-input"
                         value={minPrice}
-                        onChange={(e) => setMinPrice(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            console.log(`📝 Setting minPrice to: "${value}"`);
+                            setMinPrice(value);
+                        }}
+                        onKeyPress={handlePriceKeyPress}
                         min="0"
                         step="0.01"
+                        title="Press Enter to apply filter"
                     />
                     <span className="price-separator">-</span>
                     <input 
                         type="number" 
-                        placeholder="Max Price" 
+                        placeholder="Max price" 
                         className="price-input"
                         value={maxPrice}
-                        onChange={(e) => setMaxPrice(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            console.log(`📝 Setting maxPrice to: "${value}"`);
+                            setMaxPrice(value);
+                        }}
+                        onKeyPress={handlePriceKeyPress}
                         min="0"
                         step="0.01"
+                        title="Press Enter to apply filter"
                     />
+                    {(searchQuery !== "" || selectedCategory !== "All Categories" || minPrice !== "" || maxPrice !== "" || showMineOnly) && (
+                        <span className="backend-filter-indicator" title="Using frontend filtering">
+                            {filteredAds.length} results
+                        </span>
+                    )}
                 </div>
+                
                 <form onSubmit={handleSearch} className="search-form">
                     <input 
                         type="text" 
@@ -165,33 +228,35 @@ function AdTable({ads}) {
                     />
                     <button type="submit" className="search-btn">Search</button>
                 </form>
-                <div className="show-mine">
-                    <input 
-                        type="checkbox" 
-                        id="show-mine" 
-                        checked={showMineOnly}
-                        onChange={handleShowMineOnlyChange}
-                    />
-                    <label htmlFor="show-mine">Show mine only</label>
-                </div>
+                
                 <button 
                     type="button" 
                     className="clear-filters-btn"
                     onClick={clearFilters}
+                    title="Clear all filters"
                 >
                     Clear Filters
                 </button>
+                {isAuthenticated && (
+                    <div className="show-mine">
+                        <input 
+                            type="checkbox" 
+                            id="show-mine" 
+                            checked={showMineOnly}
+                            onChange={handleShowMineOnlyChange}
+                        />
+                        <label htmlFor="show-mine">Show mine only</label>
+                    </div>
+                )}
             </div>
 
             <div className="ads-grid">
-                {loadingUserAds ? (
-                    <div className="loading-message">Loading your ads...</div>
-                ) : filteredAds.length === 0 && showMineOnly ? (
+                {paginatedAds.length === 0 && showMineOnly ? (
                     <div className="no-ads-message">You haven't posted any ads yet.</div>
-                ) : filteredAds.length === 0 ? (
+                ) : paginatedAds.length === 0 ? (
                     <div className="no-ads-message">No ads found matching your criteria.</div>
                 ) : (
-                    filteredAds.map(ad => (
+                    paginatedAds.map(ad => (
                         <div key={ad.id} className="ad-card" onClick={() => handleAdClick(ad.id)}>
                             <div className="ad-card-image">
                                 <img src={ad.imageUrl} alt={ad.title} className="ad-image" />
@@ -203,23 +268,14 @@ function AdTable({ads}) {
                                     <span className="ad-category">{ad.category}</span>
                                 </div>
                                 {/* Only show edit/delete buttons for current user's ads */}
-                                {(() => {
-                                    // Use seller name since it's the same as username
-                                    const showButtons = isAuthenticated && user && ad.sellerName === user.username;
-                                    
-                                    if (ad.id === filteredAds[0]?.id) { // Debug first ad only
-                                        console.log(`🔍 Ad "${ad.title}" button check:`, {
-                                            isAuthenticated,
-                                            hasUser: !!user,
-                                            sellerName: ad.sellerName,
-                                            currentUsername: user?.username,
-                                            showButtons
-                                        });
-                                    }
-                                    return showButtons;
-                                })() && (
+                                {isAuthenticated && user && ad.sellerName === user.username && (
                                     <div className="ad-actions" onClick={(e) => e.stopPropagation()}>
-                                        <button className="edit-btn">Edit</button>
+                                        <button 
+                                            className="edit-btn"
+                                            onClick={() => navigate(`/edit-ad/${ad.id}`)}
+                                        >
+                                            Edit
+                                        </button>
                                         <button 
                                             className="delete-btn"
                                             onClick={() => handleDeleteAd(ad.id, ad.title)}
@@ -234,25 +290,28 @@ function AdTable({ads}) {
                 )}
             </div>
             
-            <div className="table-pagination">
-                <button 
-                    className="prev-btn" 
-                    onClick={goToPreviousPage}
-                    disabled={currentPage === 0}
-                >
-                    Previous
-                </button>
-                <span className="page-info">
-                    Page {currentPage + 1} of {totalPages}
-                </span>
-                <button 
-                    className="next-btn"
-                    onClick={goToNextPage}
-                    disabled={currentPage >= totalPages - 1}
-                >
-                    Next
-                </button>
-            </div>
+            {/* Frontend pagination for filtered results */}
+            {totalFilteredPages > 1 && (
+                <div className="table-pagination">
+                    <button 
+                        className="prev-btn" 
+                        onClick={handlePreviousPage}
+                        disabled={currentFilteredPage === 0}
+                    >
+                        Previous
+                    </button>
+                    <span className="page-info">
+                        Page {currentFilteredPage + 1} of {totalFilteredPages}
+                    </span>
+                    <button 
+                        className="next-btn"
+                        onClick={handleNextPage}
+                        disabled={currentFilteredPage >= totalFilteredPages - 1}
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
