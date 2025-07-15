@@ -301,8 +301,7 @@ function AdTable({ads}) {
                         Previous
                     </button>
                     <span className="page-info">
-                        Page {currentFilteredPage + 1} of {totalFilteredPages} 
-                        ({filteredAds.length} total results)
+                        Page {currentFilteredPage + 1} of {totalFilteredPages}
                     </span>
                     <button 
                         className="next-btn"

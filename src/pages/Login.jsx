@@ -78,14 +78,6 @@ function Login() {
                         </div>
                     )}
 
-                    <div className="form-options">
-                        <label className="checkbox-container">
-                            <input type="checkbox" />
-                            <span className="checkmark"></span>
-                            Remember me
-                        </label>
-                    </div>
-
                     <button type="submit" className="auth-btn" disabled={loading}>
                         {loading ? 'Signing In...' : 'Sign In'}
                     </button>

@@ -11,7 +11,7 @@ import AddAd from './pages/AddAd.jsx'
 import EditAd from './pages/EditAd.jsx'
 import { AuthProvider } from './services/AuthContext.jsx';
 import { AdsProvider } from './services/AdsContext.jsx';
-import {BrowserRouter, Routes,Route} from 'react-router-dom'
+import {Routes,Route} from 'react-router-dom'
 import NavBar from './components/NavBar.jsx'
 import './css/App.css'
 
