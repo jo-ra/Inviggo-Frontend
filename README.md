@@ -1,12 +1,33 @@
-# React + Vite
+<h1 align="center" id="title">Inviggo Ads Frontend</h1>
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+<p id="description">Frontend deo aplikacije Inviggo Ads.</p>
 
-Currently, two official plugins are available:
+<h2>🛠️ Upustvo za pokretanje:</h2>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+<p>1. Skinuti Node.js na kompjuteru</p>
 
-## Expanding the ESLint configuration
+<p>2. Pokrenuti Inviggo Ads Backend</p>
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+<p>3. Skinuti Inviggo Ads Frontend .zip file</p>
+
+<p>4. Nakon unzipovanja i otvaranja koda u izabranom editoru uraditi sledeću komandu</p>
+
+```
+cd Inviggo-Frontend-master
+```
+
+<p>5. Potrebno je instalirati biblioteke za projekat</p>
+
+```
+npm i
+```
+
+<p>6. Pokretanje aplikacije</p>
+
+```
+npm run dev
+```
+
+  
+  
+<h3>💻 Projekat je urađen u React-u.</h3>
