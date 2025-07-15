@@ -19,12 +19,18 @@ export const AdsProvider = ({ children }) => {
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
 
-    // Function to sanitize ads data - fix invalid categories
+    // Function to sanitize ads data - fix invalid categories and sort by creation date
     const sanitizeAds = (adsArray) => {
-        return adsArray.map(ad => ({
+        const sanitized = adsArray.map(ad => ({
             ...ad,
             category: sanitizeCategory(ad.category)
         }));
+        
+        // Sort by createdAt in descending order (newest first)
+        return sanitized.sort((a, b) => {
+            if (!a.createdAt || !b.createdAt) return 0;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
     };
 
     const fetchAds = useCallback(async (page = 0) => {
@@ -33,7 +39,8 @@ export const AdsProvider = ({ children }) => {
             setError(null);
             console.log(`🔄 Fetching ads from API... Page: ${page}`);
             
-            const response = await fetch(`http://localhost:8080/ad/getAll?page=${page}`);
+            // Add sorting by createdAt in descending order (newest first) with standard page size
+            const response = await fetch(`http://localhost:8080/ad/getAll?page=${page}&size=20&sort=createdAt,desc`);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -75,7 +82,8 @@ export const AdsProvider = ({ children }) => {
             
             while (hasMorePages) {
                 console.log(`🔄 Fetching page ${currentPageNum}...`);
-                const response = await fetch(`http://localhost:8080/ad/getAll?page=${currentPageNum}`);
+                // Add sorting by createdAt in descending order (newest first) with standard page size
+                const response = await fetch(`http://localhost:8080/ad/getAll?page=${currentPageNum}&size=20&sort=createdAt,desc`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -243,8 +251,8 @@ export const AdsProvider = ({ children }) => {
                 return [];
             }
             
-            // Build URL with all the filter parameters
-            let url = `http://localhost:8080/ad/filter?page=${page}&size=20`;
+            // Build URL with all the filter parameters and sorting
+            let url = `http://localhost:8080/ad/filter?page=${page}&size=20&sort=createdAt,desc`;
             
             if (category && category !== "All Categories") {
                 url += `&category=${encodeURIComponent(category)}`;
