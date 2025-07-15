@@ -28,7 +28,6 @@ function NavBar() {
                     <Link to="/">Inviggo</Link>
                 </div>
                 <div className="navbar-links">
-                    <Link to="/">Home</Link>
                     <Link to="/ads">Ads</Link>  
                 </div>
                  {isAuthenticated ? (
